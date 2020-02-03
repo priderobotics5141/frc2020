@@ -6,7 +6,7 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-//Robot 1-25
+//Robot 1-25, http://10.51.41.11:5801/ 
 
 package frc.robot;
 
@@ -68,7 +68,13 @@ public class Robot extends TimedRobot {
   SpeedControllerGroup rightDrive = new SpeedControllerGroup(right0,right1);
   DifferentialDrive driveTrain = new DifferentialDrive(leftDrive, rightDrive);
   VictorSP colMotor = new VictorSP(5);
-  AnalogInput m_ultrasonic = new AnalogInput(0);
+  VictorSP conveyor = new VictorSP(6);
+  VictorSP shooter = new VictorSP(7);
+  AnalogInput m_ultrasonic1 = new AnalogInput(0);
+  AnalogInput m_ultrasonic2 = new AnalogInput(1);
+  AnalogInput m_ultrasonic3 = new AnalogInput(2);
+  AnalogInput m_ultrasonic4 = new AnalogInput(3);
+
   AHRS navx;
   
   Timer autoPilotTimer = new Timer();
@@ -82,10 +88,12 @@ public class Robot extends TimedRobot {
   boolean autoFace;
   double autoFaceTimeNeeded;
   boolean doAutoPilotNow = false;
-  boolean b = true;
   boolean doubleAuto=false;
   double naenae; //it got less funny
-  boolean Ball;
+  boolean Ball1;
+  boolean Ball2;
+  boolean Ball3;
+  boolean Ball4;
   String colorString;
   String gameData;
   String nextColor = "Purple Baby";
@@ -112,6 +120,7 @@ public class Robot extends TimedRobot {
 
     int seenColor;
 
+    Timer warmUp = new Timer();
   /**
    * This function is run when the robot is first started up and should be
    * used for any initialization code.
@@ -138,6 +147,7 @@ public class Robot extends TimedRobot {
     colMotor.set(0);
     rotatenum = 0;
     seenColor = 0;
+    warmUp.reset();
   }
 
   /**
@@ -176,7 +186,6 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Proximity", proximity);
     SmartDashboard.putNumber("Confidence", match.confidence);
     SmartDashboard.putString("Detected Color", colorString);
-  
 
   double yaw = navx.getYaw(); //could not instantiate robot issue is here
     
@@ -192,26 +201,27 @@ public class Robot extends TimedRobot {
     double a = ta.getDouble(0.0);
     double v = tv.getDouble(0.0);
 
-    double ratioX = (x-6.45)/27;  //was (x-6)/27 on 3/9
-    double ratioY = y/40.5;
-    double ratioA = .8*(1-(a/20));//changed <--- thank you very cool 1/25
+    double ratioX = x/27;  //was (x-6)/27 on 3/9
+    double ratioY = y/20;
+    double ratioA = a;//changed <--- thank you very cool 1/25
+    double minCorrect = .5;
+    double maxCorrect = 1;
 
     double min = .34;
     //double sineWithSignum = Math.signum(ratioX)*(1-min)*Math.sin(ratioX*Math.PI/2)+(1+min)/2;
-    double sineLeft = ((ratioA+min)-((ratioA+min)-min)/2)*Math.sin(ratioX*Math.PI/2)+((ratioA+min)+min)/2;
-    double sineRight = (min-((ratioA+min)-min)/2)*Math.sin(ratioX*Math.PI/2)+((ratioA+min)+min)/2;
+    double sine = Math.signum(ratioX)*((maxCorrect - minCorrect)/2)*Math.sin(Math.PI*(ratioX-.5))+Math.signum(ratioX)*((maxCorrect + minCorrect)/2);
 
     double correctionX = (Math.signum(ratioX) == 1) ? Math.sin(1.2*ratioX + .2): Math.sin(1.2*ratioX - .2);
 
-    if ((gamePad0.getRawButtonPressed(1)) || doAutoPilotNow && v==1) { //a button
+    if ((gamePad0.getRawButton(1)) || doAutoPilotNow && v==1) { //a button
       autoPilotStep = 1;
     }
     else{doAutoPilotNow=false;}
 
     switch(autoPilotStep) {
       case 1:
-      if(v==1){driveTrain.tankDrive((sineLeft/1.1/*(ratioX*.5)+ratioA*.8*/)+0.1,((sineRight/1.1/*(-(ratioX*.5))*12/13+ratioA*.8*/))+0.1);}//.4
-      if (a > 6.6){autoPilotStep = 0;doAutoPilotNow = false;b=true;}
+      if(v==1){driveTrain.tankDrive(sine*.75+(7.39-y)/20*.9,-(sine*.75)+(7.39-y)/20*.9);}//.4
+      if (x > -.5 && x < .5){autoPilotStep = 0;doAutoPilotNow = false;}
       break;
     }
 
@@ -224,7 +234,10 @@ public class Robot extends TimedRobot {
   SmartDashboard.putNumber("Yaw",navx.getYaw());
   SmartDashboard.putNumber("NavxStep",navxStep);
   SmartDashboard.putBoolean("Auto",doAutoPilotNow);
-  SmartDashboard.putBoolean("isBall", Ball);
+  SmartDashboard.putBoolean("isBall1", Ball1);
+  SmartDashboard.putBoolean("isBall2", Ball2);
+  SmartDashboard.putBoolean("isBall3", Ball3);
+  SmartDashboard.putBoolean("isBall4", Ball4);
   
   }
 
@@ -276,6 +289,8 @@ SmartDashboard.putString("gameData",gameData);
 SmartDashboard.putString("nextColor",nextColor);
 SmartDashboard.putString("gameSadFace",gameSadFace);
 SmartDashboard.putNumber("rotatenum",rotatenum);
+
+
 /*
 Implement logic
 if 
@@ -285,16 +300,16 @@ if(gameData.length() > 0)
   switch (gameData.charAt(0))
   {
     case 'B' :
-    gameSadFace = "B";
-      break;
-    case 'G' :
-    gameSadFace = "G";
-      break;
-    case 'R' :
     gameSadFace = "R";
       break;
-    case 'Y' :
+    case 'G' :
     gameSadFace = "Y";
+      break;
+    case 'R' :
+    gameSadFace = "B";
+      break;
+    case 'Y' :
+    gameSadFace = "G";
       break;
     default :
     gameSadFace = "N/A";
@@ -302,50 +317,84 @@ if(gameData.length() > 0)
   }
 }
 SmartDashboard.putNumber("seenColor",seenColor);
-if (gamePad0.getRawButtonPressed(3)){rotatenum += 1;}
+//Color Wheel Moter Must Turn CounterClockwise
+if (gamePad0.getRawButtonPressed(3)){rotatenum += 8;} //rotatenum is number of rotations asked for x2; e.g. setting for 8 makes 4 full rotations, setting for 7 gives 3.5 wheel rotations.
 if (rotatenum > 0){
  colMotor.set(.5);
   if (nextColor == "B" && colorString == "Y" && seenColor == 0){
     rotatenum -= 1;
     seenColor = 1;
     }
-    if (nextColor == "G" && colorString == "B"){
+    if (nextColor == "B" && colorString != "Y" && seenColor == 1){
+      seenColor = 0;
+      }
+    if (nextColor == "G" && colorString == "B" && seenColor == 0){
     rotatenum -= 1;
+    seenColor = 1;
     }
-    if (nextColor == "R" && colorString == "G"){
+    if (nextColor == "G" && colorString != "B" && seenColor == 1){
+      seenColor = 0;
+      }
+    if (nextColor == "R" && colorString == "G" && seenColor == 0){
     rotatenum -= 1;
-    }
-    if (nextColor == "Y" && colorString == "R"){
+    seenColor = 1;
+  }
+  if (nextColor == "R" && colorString != "G" && seenColor == 1){
+    seenColor = 0;
+}
+    if (nextColor == "Y" && colorString == "R" && seenColor == 0){
     rotatenum -=1;
+    seenColor = 1;
+  }
+  if (nextColor == "Y" && colorString != "R" && seenColor == 1){
+    seenColor = 0;
     }
-    else{seenColor = 0;}
 } else if (gamePad0.getRawButton(2)&& gameSadFace != nextColor){
 colMotor.set(.25);
-     if (nextColor == "B" && colorString == "G"){
+    if (nextColor == "B" && colorString == "G"){
      nextColor = "G";
      }
      if (nextColor == "G" && colorString == "R"){
      nextColor = "R";
-    
      }
      if (nextColor == "R" && colorString == "Y"){
      nextColor = "Y";
-    
      }
      if (nextColor == "Y" && colorString == "B"){
      nextColor = "B";
-     
      }
-
 }else{
  nextColor = colorString;
 colMotor.stopMotor();
 }
  
 //}
-    if(m_ultrasonic.getValue() > 245){Ball = false;}
-    else{ Ball = true; }
-    
+//Conveyor
+    if(m_ultrasonic1.getValue() > 245){Ball1 = false;}
+    else{ Ball1 = true; }
+
+    if(m_ultrasonic2.getValue() > 245){Ball2 = false;}
+    else{ Ball2 = true; }
+
+    if(m_ultrasonic3.getValue() > 245){Ball3 = false;}
+    else{ Ball3 = true; }
+
+    if(m_ultrasonic4.getValue() > 245){Ball4 = false;}
+    else{ Ball4 = true; }
+
+   if(gamePad0.getRawButton(4) && Ball1 && !Ball4){conveyor.set(.5);}
+   if((Ball4 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);}
+   if (gamePad0.getRawButton(6)){
+    warmUp.start();
+    shooter.set(1);
+  if(warmUp.hasPeriodPassed(10)){conveyor.set(.5);}
+   }
+   else{
+     warmUp.reset();
+      warmUp.stop();
+    }
+
+
     if(autoPilotStep==0){
       SmartDashboard.putNumber("leftStick",gamePad0.getRawAxis(1));
       SmartDashboard.putNumber("rightStick",gamePad0.getRawAxis(5));
@@ -371,6 +420,9 @@ colMotor.stopMotor();
       autoPilotStep=0;
       doAutoPilotNow=false;
       seenColor = 0;
+      rotatenum = 0;
+      warmUp.reset();
+      warmUp.stop();
     }
 
 
