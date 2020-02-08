@@ -70,6 +70,7 @@ public class Robot extends TimedRobot {
   VictorSP colMotor = new VictorSP(5);
   VictorSP conveyor = new VictorSP(6);
   VictorSP shooter = new VictorSP(7);
+  VictorSP intake = new VictorSP(8);
   AnalogInput m_ultrasonic1 = new AnalogInput(0);
   AnalogInput m_ultrasonic2 = new AnalogInput(1);
   AnalogInput m_ultrasonic3 = new AnalogInput(2);
@@ -79,7 +80,16 @@ public class Robot extends TimedRobot {
   
   Timer autoPilotTimer = new Timer();
 
-  
+  double h2 = 84; //height of target "inches"
+  double h1 = 32; //height of camera
+  double a1 = 20; //angle of camera
+  double disXnum;
+  double aimnum;
+  double difYnum = h2 - h1;
+  double airtim;
+  double fixedAngle = Math.PI/4; //angle of shooter
+  double veloFwoosh; //angular velocity variable
+  double velocityToMotorRatio = 2; //conversion rate
 
   int autoPilotStep = 0;
   int navxStep = 0;
@@ -94,6 +104,7 @@ public class Robot extends TimedRobot {
   boolean Ball2;
   boolean Ball3;
   boolean Ball4;
+  boolean intakeOn = false;
   String colorString;
   String gameData;
   String nextColor = "Purple Baby";
@@ -115,6 +126,8 @@ public class Robot extends TimedRobot {
     NetworkTableEntry ty;
     NetworkTableEntry ta;
     NetworkTableEntry tv;
+    double x;
+    double y;
     double a;
     double v;
 
@@ -141,7 +154,8 @@ public class Robot extends TimedRobot {
     m_colorMatcher.addColorMatch(RedTarget);
     m_colorMatcher.addColorMatch(YellowTarget);
 
-    autoPilotTimer.start();
+    autoPilotTimer.reset();
+    autoPilotTimer.stop();
     navx.reset();
     navx.zeroYaw();
     colMotor.set(0);
@@ -187,7 +201,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Confidence", match.confidence);
     SmartDashboard.putString("Detected Color", colorString);
 
-  double yaw = navx.getYaw(); //could not instantiate robot issue is here
+    double yaw = navx.getYaw();
     
    
     NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
@@ -202,30 +216,51 @@ public class Robot extends TimedRobot {
     double v = tv.getDouble(0.0);
 
     double ratioX = x/27;  //was (x-6)/27 on 3/9
-    double ratioY = y/20;
-    double ratioA = a;//changed <--- thank you very cool 1/25
-    double minCorrect = .5;
-    double maxCorrect = 1;
+    double ratioY = (1.81-y)/20;  // was y/20
+    double ratioA = (2.68 - a);//changed <--- thank you very cool 1/25
+    double minCorrectX = .32;
+    double maxCorrectX = 1;
+    double minCorrectY = .3;
+    double maxCorrectY = .5;
 
-    double min = .34;
     //double sineWithSignum = Math.signum(ratioX)*(1-min)*Math.sin(ratioX*Math.PI/2)+(1+min)/2;
-    double sine = Math.signum(ratioX)*((maxCorrect - minCorrect)/2)*Math.sin(Math.PI*(ratioX-.5))+Math.signum(ratioX)*((maxCorrect + minCorrect)/2);
+    double sineX = Math.signum(ratioX)*((maxCorrectX - minCorrectX)/2)*Math.sin(Math.PI*(ratioX-.5))+Math.signum(ratioX)*((maxCorrectX + minCorrectX)/2);
+    double sineY = Math.signum(ratioY)*((maxCorrectY - minCorrectY)/2)*Math.sin(Math.PI*(ratioY-.5))+Math.signum(ratioY)*((maxCorrectY + minCorrectY)/2);
 
     double correctionX = (Math.signum(ratioX) == 1) ? Math.sin(1.2*ratioX + .2): Math.sin(1.2*ratioX - .2);
 
-    if ((gamePad0.getRawButton(1)) || doAutoPilotNow && v==1) { //a button
+    if (((gamePad0.getRawButtonPressed(1)) || doAutoPilotNow) && v==1) { //a button
       autoPilotStep = 1;
     }
     else{doAutoPilotNow=false;}
 
     switch(autoPilotStep) {
       case 1:
-      if(v==1){driveTrain.tankDrive(sine*.75+(7.39-y)/20*.9,-(sine*.75)+(7.39-y)/20*.9);}//.4
-      if (x > -.5 && x < .5){autoPilotStep = 0;doAutoPilotNow = false;}
+      if(v==1){driveTrain.tankDrive(sineX*.5+sineY,-(sineX*.5)+sineY);}//.4
+      if (x > -.5 && x < .5 && ratioY > -.5 && ratioY < .5 && ratioA > -.2 && ratioA < .2){autoPilotStep = 0;doAutoPilotNow = false;}
+      /*if (x > -.8 && x < .8 && ratioY > -.8 && ratioY < .8 && ratioA > -.8 && ratioA < .8){
+        autoPilotTimer.start();
+      }else{
+        autoPilotTimer.reset();
+        autoPilotTimer.stop();
+      }
+      if (autoPilotTimer.hasPeriodPassed(1)){
+        autoPilotStep = 0;
+        doAutoPilotNow = false;
+      }*/
       break;
     }
+    // Potential Goldilocks, original dood distance y = 7.39
+    //((y < -1.48)?.25:-.25)
+    //(7.39-y)/20*.9
+    aimnum = Math.sqrt((disXnum*Math.tan(fixedAngle)*(disXnum)*(disXnum))/2*Math.pow(Math.cos(fixedAngle),2)*difYnum);
 
-    SmartDashboard.putNumber("LimelightX", x);
+    //disXnum = ((h2-h1)/Math.tan((a1-y)*Math.PI/180));
+    disXnum = (h2-h1)/(Math.tan((a1+y)*Math.PI/180));
+    airtim = Math.sqrt((2*Math.sin(fixedAngle)/117.6)*((disXnum/Math.cos(fixedAngle))-(difYnum/Math.sin(fixedAngle))));
+    veloFwoosh = disXnum/(Math.cos(fixedAngle)*airtim);
+//(h2-h1)*.1/Math.tan((a1-y))
+   SmartDashboard.putNumber("LimelightX", x);
   SmartDashboard.putNumber("LimelightY", y);
   SmartDashboard.putNumber("LimelightA", a);
   SmartDashboard.putNumber("correctionX", correctionX);  
@@ -238,7 +273,12 @@ public class Robot extends TimedRobot {
   SmartDashboard.putBoolean("isBall2", Ball2);
   SmartDashboard.putBoolean("isBall3", Ball3);
   SmartDashboard.putBoolean("isBall4", Ball4);
-  
+
+  SmartDashboard.putNumber("DisXNum", disXnum);
+  SmartDashboard.putNumber("DifYNum", difYnum);
+  SmartDashboard.putNumber("aimnum",aimnum);
+  SmartDashboard.putNumber("Velocity",veloFwoosh);
+  SmartDashboard.putNumber("airtime",airtim);
   }
 
   @Override
@@ -382,18 +422,22 @@ colMotor.stopMotor();
     if(m_ultrasonic4.getValue() > 245){Ball4 = false;}
     else{ Ball4 = true; }
 
-   if(gamePad0.getRawButton(4) && Ball1 && !Ball4){conveyor.set(.5);}
-   if((Ball4 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);}
+    if(gamePad0.getRawButtonPressed(5)){intakeOn = !intakeOn;}
+    if(intakeOn){intake.set(.5);}
+    else{intake.set(0);}
+
+   if(gamePad0.getRawButton(4) && Ball1 && !Ball4){conveyor.set(.5);} //button 4 questionable, propose we do it autonomous
+   if((Ball4 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);} 
    if (gamePad0.getRawButton(6)){
     warmUp.start();
-    shooter.set(1);
-  if(warmUp.hasPeriodPassed(10)){conveyor.set(.5);}
+    shooter.set(veloFwoosh*velocityToMotorRatio);//shooter value depending on target distance x and y
+   if(warmUp.hasPeriodPassed(10)){conveyor.set(.5);}
    }
    else{
+     warmUp.stop();
      warmUp.reset();
-      warmUp.stop();
+     shooter.set(0); //coolDown
     }
-
 
     if(autoPilotStep==0){
       SmartDashboard.putNumber("leftStick",gamePad0.getRawAxis(1));
@@ -404,6 +448,10 @@ colMotor.stopMotor();
       //double rightStick = (-gamePad0.getRawAxis(5)*((gamePad0.getRawAxis(3)==1)?.6:.8));
       driveTrain.tankDrive(leftStick,rightStick);//12/13 is motor ratio for simon none for flash
      }
+     if (gamePad0.getRawButtonPressed(10)) {
+      autoPilotStep=0;
+      doAutoPilotNow=false;
+    }
 
     if(autoPilotStep != 0 || autoFace){
       gamePad0.setRumble(RumbleType.kRightRumble, 1);
