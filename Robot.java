@@ -52,14 +52,14 @@ import com.revrobotics.ColorMatch;
  * project.
  */
 public class Robot extends TimedRobot {
-  
+  /*
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
-
+*/
   
-
+String autoPosition ="B-GAMERRRRRRRR";
 
   Joystick gamePad0 = new Joystick (0);
   /*
@@ -84,22 +84,13 @@ public class Robot extends TimedRobot {
   VictorSP conveyor = new VictorSP(6);
   VictorSP shooter = new VictorSP(7);
   VictorSP intake = new VictorSP(8);
-  AnalogInput m_ultrasonic1 = new AnalogInput(0);
-  AnalogInput m_ultrasonic2 = new AnalogInput(1);
-  AnalogInput m_ultrasonic3 = new AnalogInput(2);
-  AnalogInput m_ultrasonic4 = new AnalogInput(3);
   DigitalOutput ultrasonicPing1 = new DigitalOutput(0);
   DigitalInput ultrasonicEcho1 = new DigitalInput(1);
   DigitalOutput ultrasonicPing2 = new DigitalOutput(2);
   DigitalInput ultrasonicEcho2 = new DigitalInput(3);
-  DigitalOutput ultrasonicPing3 = new DigitalOutput(4);
-  DigitalInput ultrasonicEcho3 = new DigitalInput(5);
-  DigitalOutput ultrasonicPing4 = new DigitalOutput(6);
-  DigitalInput ultrasonicEcho4 = new DigitalInput(7);
   Ultrasonic ultrasonic1 = new Ultrasonic(ultrasonicPing1,ultrasonicEcho1);
   Ultrasonic ultrasonic2 = new Ultrasonic(ultrasonicPing2,ultrasonicEcho2);
-  Ultrasonic ultrasonic3 = new Ultrasonic(ultrasonicPing3,ultrasonicEcho3);
-  Ultrasonic ultrasonic4 = new Ultrasonic(ultrasonicPing4,ultrasonicEcho4);
+
 
   AHRS navx;
   
@@ -129,7 +120,7 @@ public class Robot extends TimedRobot {
   boolean Ball2;
   boolean Ball3;
   boolean Ball4;
-  boolean intakeOn = false;
+  boolean intakeOn = true;
   String colorString;
   String gameData;
   String nextColor = "Purple Baby";
@@ -142,6 +133,9 @@ public class Robot extends TimedRobot {
   private final Color GreenTarget = ColorMatch.makeColor(0.197, 0.561, 0.240);
   private final Color RedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
   private final Color YellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
+
+  double range1;
+  double range2;
 
   double yaw; 
     
@@ -165,10 +159,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    
-    m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
-    m_chooser.addOption("My Auto", kCustomAuto);
-    SmartDashboard.putData("Auto choices", m_chooser);
     navx = new AHRS(SerialPort.Port.kMXP, SerialDataType.kProcessedData, (byte)50);
     rightDrive.setInverted(true);// Set true for Flash, set false for Simon/Tank
     leftDrive.setInverted(true);//false for Simon and Dave, true for Flash
@@ -199,8 +189,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    SmartDashboard.getNumber("Sonar", m_ultrasonic3.getValue());
-
     int proximity = cSensor.getProximity();
     Color detectedColor = cSensor.getColor();
     ColorMatchResult match = m_colorMatcher.matchClosestColor(detectedColor);
@@ -241,30 +229,44 @@ public class Robot extends TimedRobot {
     double a = ta.getDouble(0.0);
     double v = tv.getDouble(0.0);
 
+    double marginXerror = 93;
     double ratioX = x/27;  //was (x-6)/27 on 3/9
     //double ratioY = (1.81-y)/20;  // was y/20 Based of angle target is seen at
-    double ratioY = (disXnum-108)/35;  // Based of distance of target from dsXnum 108, 35
+    double ratioY = (disXnum-marginXerror)/25;  // Based of distance of target from dsXnum 108, 35
     double ratioA = (2.68 - a);//changed <--- thank you very cool 1/25
-    double minCorrectX = .32;
-    double maxCorrectX = 1;
-    double minCorrectY = .3;
-    double maxCorrectY = .5;
+    double minCorrectX = .2;
+    double maxCorrectX = .33;
+    double minCorrectY = .22;
+    double maxCorrectY = .6;
 
     //double sineWithSignum = Math.signum(ratioX)*(1-min)*Math.sin(ratioX*Math.PI/2)+(1+min)/2;
     double sineX = Math.signum(ratioX)*((maxCorrectX - minCorrectX)/2)*Math.sin(Math.PI*(ratioX-.5))+Math.signum(ratioX)*((maxCorrectX + minCorrectX)/2);
     double sineY = Math.signum(ratioY)*((maxCorrectY - minCorrectY)/2)*Math.sin(Math.PI*(ratioY-.5))+Math.signum(ratioY)*((maxCorrectY + minCorrectY)/2);
-
-    double correctionX = (Math.signum(ratioX) == 1) ? Math.sin(1.2*ratioX + .2): Math.sin(1.2*ratioX - .2);
-
-    if (((gamePad0.getRawButtonPressed(1)) || doAutoPilotNow) && v==1) { //a button
+    
+    if  (doAutoPilotNow && v==1) { //a button
       autoPilotStep = 1;
     }
-    else{doAutoPilotNow=false;}
-
+    else{
+      doAutoPilotNow=false;
+      autoPilotStep = 0;
+    }
     switch(autoPilotStep) {
       case 1:
-      if(v==1){driveTrain.tankDrive(sineX*.5+sineY,-(sineX*.5)+sineY);}//.4
-      if (x > -.5 && x < .5 && ratioY > -.5 && ratioY < .5 && ratioA > -.2 && ratioA < .2){autoPilotStep = 0;doAutoPilotNow = false;}
+      if(v==1){driveTrain.tankDrive(sineX+sineY,-(sineX)+sineY);}//.4
+      //if (x > -1 && x < 1 && disXnum > (marginXerror-.8) && disXnum < (marginXerror+.8)){autoPilotStep = 0;doAutoPilotNow = false;}
+      if (x > -1 && x < 1 && disXnum > (marginXerror-1.5) && disXnum < (marginXerror+1.5))
+      {
+        if(autoPilotTimer.get() == 0){autoPilotTimer.start();}
+      }
+      else
+      {
+        autoPilotTimer.reset();
+        autoPilotTimer.stop();
+      }
+      if (autoPilotTimer.hasPeriodPassed(1)){
+        autoPilotStep = 0;
+        doAutoPilotNow = false;
+      }
       /*if (x > -.8 && x < .8 && ratioY > -.8 && ratioY < .8 && ratioA > -.8 && ratioA < .8){
         autoPilotTimer.start();
       }else{
@@ -290,16 +292,15 @@ public class Robot extends TimedRobot {
    SmartDashboard.putNumber("LimelightX", x);
   SmartDashboard.putNumber("LimelightY", y);
   SmartDashboard.putNumber("LimelightA", a);
-  SmartDashboard.putNumber("correctionX", correctionX);  
   SmartDashboard.putNumber("ratioX",ratioX);
   SmartDashboard.putNumber("D-Pad",gamePad0.getPOV());
   SmartDashboard.putNumber("Yaw",navx.getYaw());
   SmartDashboard.putNumber("NavxStep",navxStep);
+
   SmartDashboard.putBoolean("Auto",doAutoPilotNow);
   SmartDashboard.putBoolean("isBall1", Ball1);
   SmartDashboard.putBoolean("isBall2", Ball2);
-  SmartDashboard.putBoolean("isBall3", Ball3);
-  SmartDashboard.putBoolean("isBall4", Ball4);
+
 
   SmartDashboard.putNumber("DisXNum", disXnum);
   SmartDashboard.putNumber("DifYNum", difYnum);
@@ -310,11 +311,8 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    teleopInit();
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
-    
+    //teleopInit();
+
   }
 
   /**
@@ -323,8 +321,10 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     
-    
-    teleopPeriodic();
+    //teleopPeriodic();
+   /* if( true ) {
+      //
+    }
     switch (m_autoSelected) {
       case kCustomAuto:
         // Put custom auto code here
@@ -333,8 +333,23 @@ public class Robot extends TimedRobot {
       default:
         // Put default auto code here
         break;
-    }
+    }*/
     
+    switch (autoPosition.charAt(0)) {
+      case 'L':
+        driveTrain.tankDrive(-.5,.5);
+        break;
+      case 'C':
+      driveTrain.tankDrive(.5,.5);
+        break;
+        case 'R':
+        driveTrain.tankDrive(.5,-.5);
+        break;
+        default:
+        driveTrain.tankDrive(0,0);
+        break;
+    }
+
   }
   @Override
   public void teleopInit() {
@@ -346,27 +361,23 @@ public class Robot extends TimedRobot {
     rotatenum = 0;
     ultrasonic1.setEnabled(true);
     ultrasonic2.setEnabled(true);
-    ultrasonic3.setEnabled(true);
-    ultrasonic4.setEnabled(true);
   }
   /**
    * This function is called periodically during operator control.
    */
   @Override
   public void teleopPeriodic() {
-    
+
 SmartDashboard.putString("gameData",gameData);
 //SmartDashboard.putString("DetectedColor",colorString); just so  Iremember
 SmartDashboard.putString("nextColor",nextColor);
 SmartDashboard.putString("gameSadFace",gameSadFace);
 SmartDashboard.putNumber("rotatenum",rotatenum);
-SmartDashboard.putNumber("ultrasonicRange",ultrasonic1.getRangeMM());
+SmartDashboard.putNumber("ultrasonicRange1",ultrasonic1.getRangeMM());
+SmartDashboard.putNumber("ultrasonicRange2",ultrasonic2.getRangeMM());
+SmartDashboard.putNumber("Range1",range1);
+SmartDashboard.putNumber("Range2",range2);
 SmartDashboard.putBoolean("ultrasonic",ultrasonic1.isEnabled());
-ultrasonic1.ping();
-ultrasonic2.ping();
-ultrasonic3.ping();
-ultrasonic4.ping();
-
 
 /*
 Implement logic
@@ -394,7 +405,7 @@ if(gameData.length() > 0)
   }
 }
 SmartDashboard.putNumber("seenColor",seenColor);
-//Color Wheel Moter Must Turn CounterClockwise
+//Color Wheel Moter Must Turn Clockwise
 if (gamePad0.getRawButtonPressed(3)){rotatenum += 8;} //rotatenum is number of rotations asked for x2; e.g. setting for 8 makes 4 full rotations, setting for 7 gives 3.5 wheel rotations.
 if (rotatenum > 0){
  colMotor.set(.5);
@@ -444,27 +455,22 @@ colMotor.set(.25);
  nextColor = colorString;
 colMotor.stopMotor();
 }
- 
-//}
-//Conveyor change plz
+
     if(ultrasonic1.getRangeMM() > 200){Ball1 = false;}
     else{ Ball1 = true; }
 
-    if(m_ultrasonic2.getValue() > 245){Ball2 = false;}
+    if(ultrasonic2.getRangeMM() > 200){Ball2 = false;}
     else{ Ball2 = true; }
 
-    if(m_ultrasonic3.getValue() > 245){Ball3 = false;}
-    else{ Ball3 = true; }
-
-    if(m_ultrasonic4.getValue() > 245){Ball4 = false;}
-    else{ Ball4 = true; }
+    ultrasonic1.ping();
+    ultrasonic2.ping();
 
     if(gamePad0.getRawButtonPressed(5)){intakeOn = !intakeOn;}
     if(intakeOn){intake.set(.5);}
     else{intake.set(0);}
-
-   if(gamePad0.getRawButton(4) && Ball1 && !Ball4){conveyor.set(.5);} //button 4 questionable, propose we do it autonomous
-   if((Ball4 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);} 
+    //gamePad0.getRawButton(4) &&
+   if(Ball1 && !Ball2){conveyor.set(.5);} //button 4 questionable, propose we do it autonomous
+   if((Ball2 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);} 
    if (gamePad0.getRawButton(6)){
     warmUp.start();
     shooter.set(veloFwoosh*velocityToMotorRatio);//shooter value depending on target distance x and y
@@ -500,6 +506,12 @@ colMotor.stopMotor();
     }
     
     SmartDashboard.putNumber("autopilot",autoPilotStep);
+
+    if(gamePad0.getRawButtonPressed(1)){doAutoPilotNow = !doAutoPilotNow;}
+    if (gamePad0.getRawButtonPressed(6) ||Math.abs(gamePad0.getRawAxis(1)) >= .2 || Math.abs(gamePad0.getRawAxis(5)) >= .2) { //a button
+      autoPilotStep = 0;
+      doAutoPilotNow=false;
+    }
 
     if(gamePad0.getRawButtonPressed(8)){ //start button is kill switch for autoPilot, autoTurnLeft, and autoTurnRight
       autoPilotStep=0;
