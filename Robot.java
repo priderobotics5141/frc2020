@@ -17,6 +17,8 @@ import com.kauailabs.navx.frc.AHRS.SerialDataType;
 
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DigitalOutput;
+import edu.wpi.first.wpilibj.Ultrasonic;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
@@ -41,6 +43,7 @@ import com.revrobotics.ColorSensorV3;
 import com.revrobotics.ColorMatchResult;
 import com.revrobotics.ColorMatch;
 
+
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the TimedRobot
@@ -59,9 +62,19 @@ public class Robot extends TimedRobot {
 
 
   Joystick gamePad0 = new Joystick (0);
+  /*
+  Button mapping
+  1 - AutoFace
+  2 - Color 
+  3 - Rotate
+  4 - Conveyer input ?
+  5 - Intake toggle
+  6 - Shooter
+  7 - 
+  8 - Auto Kill
+  */
   VictorSP left0 = new VictorSP(2);
   VictorSP left1 = new VictorSP(3);
-
   VictorSP right0 = new VictorSP(0);
   VictorSP right1 = new VictorSP(1);
   SpeedControllerGroup leftDrive = new SpeedControllerGroup(left0,left1);
@@ -75,19 +88,31 @@ public class Robot extends TimedRobot {
   AnalogInput m_ultrasonic2 = new AnalogInput(1);
   AnalogInput m_ultrasonic3 = new AnalogInput(2);
   AnalogInput m_ultrasonic4 = new AnalogInput(3);
+  DigitalOutput ultrasonicPing1 = new DigitalOutput(0);
+  DigitalInput ultrasonicEcho1 = new DigitalInput(1);
+  DigitalOutput ultrasonicPing2 = new DigitalOutput(2);
+  DigitalInput ultrasonicEcho2 = new DigitalInput(3);
+  DigitalOutput ultrasonicPing3 = new DigitalOutput(4);
+  DigitalInput ultrasonicEcho3 = new DigitalInput(5);
+  DigitalOutput ultrasonicPing4 = new DigitalOutput(6);
+  DigitalInput ultrasonicEcho4 = new DigitalInput(7);
+  Ultrasonic ultrasonic1 = new Ultrasonic(ultrasonicPing1,ultrasonicEcho1);
+  Ultrasonic ultrasonic2 = new Ultrasonic(ultrasonicPing2,ultrasonicEcho2);
+  Ultrasonic ultrasonic3 = new Ultrasonic(ultrasonicPing3,ultrasonicEcho3);
+  Ultrasonic ultrasonic4 = new Ultrasonic(ultrasonicPing4,ultrasonicEcho4);
 
   AHRS navx;
   
   Timer autoPilotTimer = new Timer();
 
-  double h2 = 84; //height of target "inches"
+  double h2 = 83; //height of target "inches"
   double h1 = 32; //height of camera
   double a1 = 20; //angle of camera
   double disXnum;
   double aimnum;
   double difYnum = h2 - h1;
   double airtim;
-  double fixedAngle = Math.PI/4; //angle of shooter
+  double fixedAngle = (45)*Math.PI/180; //angle of shooter
   double veloFwoosh; //angular velocity variable
   double velocityToMotorRatio = 2; //conversion rate
 
@@ -174,7 +199,8 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    
+    SmartDashboard.getNumber("Sonar", m_ultrasonic3.getValue());
+
     int proximity = cSensor.getProximity();
     Color detectedColor = cSensor.getColor();
     ColorMatchResult match = m_colorMatcher.matchClosestColor(detectedColor);
@@ -216,7 +242,8 @@ public class Robot extends TimedRobot {
     double v = tv.getDouble(0.0);
 
     double ratioX = x/27;  //was (x-6)/27 on 3/9
-    double ratioY = (1.81-y)/20;  // was y/20
+    //double ratioY = (1.81-y)/20;  // was y/20 Based of angle target is seen at
+    double ratioY = (disXnum-108)/35;  // Based of distance of target from dsXnum 108, 35
     double ratioA = (2.68 - a);//changed <--- thank you very cool 1/25
     double minCorrectX = .32;
     double maxCorrectX = 1;
@@ -317,6 +344,10 @@ public class Robot extends TimedRobot {
     navx.zeroYaw();
     colMotor.set(0);
     rotatenum = 0;
+    ultrasonic1.setEnabled(true);
+    ultrasonic2.setEnabled(true);
+    ultrasonic3.setEnabled(true);
+    ultrasonic4.setEnabled(true);
   }
   /**
    * This function is called periodically during operator control.
@@ -329,6 +360,12 @@ SmartDashboard.putString("gameData",gameData);
 SmartDashboard.putString("nextColor",nextColor);
 SmartDashboard.putString("gameSadFace",gameSadFace);
 SmartDashboard.putNumber("rotatenum",rotatenum);
+SmartDashboard.putNumber("ultrasonicRange",ultrasonic1.getRangeMM());
+SmartDashboard.putBoolean("ultrasonic",ultrasonic1.isEnabled());
+ultrasonic1.ping();
+ultrasonic2.ping();
+ultrasonic3.ping();
+ultrasonic4.ping();
 
 
 /*
@@ -361,46 +398,46 @@ SmartDashboard.putNumber("seenColor",seenColor);
 if (gamePad0.getRawButtonPressed(3)){rotatenum += 8;} //rotatenum is number of rotations asked for x2; e.g. setting for 8 makes 4 full rotations, setting for 7 gives 3.5 wheel rotations.
 if (rotatenum > 0){
  colMotor.set(.5);
-  if (nextColor == "B" && colorString == "Y" && seenColor == 0){
+  if (nextColor == "B" && colorString == "G" && seenColor == 0){
     rotatenum -= 1;
     seenColor = 1;
     }
-    if (nextColor == "B" && colorString != "Y" && seenColor == 1){
+    if (nextColor == "B" && colorString != "G" && seenColor == 1){
       seenColor = 0;
       }
-    if (nextColor == "G" && colorString == "B" && seenColor == 0){
+    if (nextColor == "G" && colorString == "R" && seenColor == 0){
     rotatenum -= 1;
     seenColor = 1;
     }
-    if (nextColor == "G" && colorString != "B" && seenColor == 1){
+    if (nextColor == "G" && colorString != "R" && seenColor == 1){
       seenColor = 0;
       }
-    if (nextColor == "R" && colorString == "G" && seenColor == 0){
+    if (nextColor == "R" && colorString == "Y" && seenColor == 0){
     rotatenum -= 1;
     seenColor = 1;
   }
-  if (nextColor == "R" && colorString != "G" && seenColor == 1){
+  if (nextColor == "R" && colorString != "Y" && seenColor == 1){
     seenColor = 0;
 }
-    if (nextColor == "Y" && colorString == "R" && seenColor == 0){
+    if (nextColor == "Y" && colorString == "B" && seenColor == 0){
     rotatenum -=1;
     seenColor = 1;
   }
-  if (nextColor == "Y" && colorString != "R" && seenColor == 1){
+  if (nextColor == "Y" && colorString != "B" && seenColor == 1){
     seenColor = 0;
     }
 } else if (gamePad0.getRawButton(2)&& gameSadFace != nextColor){
 colMotor.set(.25);
-    if (nextColor == "B" && colorString == "G"){
-     nextColor = "G";
-     }
-     if (nextColor == "G" && colorString == "R"){
-     nextColor = "R";
-     }
-     if (nextColor == "R" && colorString == "Y"){
+    if (nextColor == "B" && colorString == "Y"){
      nextColor = "Y";
      }
-     if (nextColor == "Y" && colorString == "B"){
+     if (nextColor == "Y" && colorString == "R"){
+     nextColor = "R";
+     }
+     if (nextColor == "R" && colorString == "G"){
+     nextColor = "G";
+     }
+     if (nextColor == "G" && colorString == "B"){
      nextColor = "B";
      }
 }else{
@@ -409,8 +446,8 @@ colMotor.stopMotor();
 }
  
 //}
-//Conveyor
-    if(m_ultrasonic1.getValue() > 245){Ball1 = false;}
+//Conveyor change plz
+    if(ultrasonic1.getRangeMM() > 200){Ball1 = false;}
     else{ Ball1 = true; }
 
     if(m_ultrasonic2.getValue() > 245){Ball2 = false;}
@@ -471,6 +508,7 @@ colMotor.stopMotor();
       rotatenum = 0;
       warmUp.reset();
       warmUp.stop();
+      shooter.set(0);
     }
 
 
