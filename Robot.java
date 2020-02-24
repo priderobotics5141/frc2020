@@ -12,8 +12,8 @@ package frc.robot;
 
 import javax.swing.event.ChangeEvent;
 
-import com.kauailabs.navx.frc.AHRS;
-import com.kauailabs.navx.frc.AHRS.SerialDataType;
+//import com.kauailabs.navx.frc.AHRS;
+//import com.kauailabs.navx.frc.AHRS.SerialDataType;
 
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -56,11 +56,10 @@ public class Robot extends TimedRobot {
   private static final String kCenter = "Center";
   private static final String kLeft = "Left";
   private static final String kRight = "Right";
+  private static final String kOff = "Off";
+
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
-
-  
-  String autoPosition ="B-GAMERRRRRRRR";
 
   Joystick gamePad0 = new Joystick (0);
   /*
@@ -74,37 +73,42 @@ public class Robot extends TimedRobot {
   7 - 
   8 - Auto Kill
   */
-  VictorSP left0 = new VictorSP(2);
-  VictorSP left1 = new VictorSP(3);
-  VictorSP right0 = new VictorSP(0);
-  VictorSP right1 = new VictorSP(1);
-  SpeedControllerGroup leftDrive = new SpeedControllerGroup(left0,left1);
+  VictorSP left0 = new VictorSP(6);
+  VictorSP left1 = new VictorSP(7);
+  VictorSP right0 = new VictorSP(8);
+  VictorSP right1 = new VictorSP(9);
+  SpeedControllerGroup leftDrive = new SpeedControllerGroup(left1,left0);
   SpeedControllerGroup rightDrive = new SpeedControllerGroup(right0,right1);
   DifferentialDrive driveTrain = new DifferentialDrive(leftDrive, rightDrive);
-  VictorSP colMotor = new VictorSP(5);
-  VictorSP conveyor = new VictorSP(6);
-  VictorSP shooter = new VictorSP(7);
-  VictorSP intake = new VictorSP(8);
+  VictorSP colMotor = new VictorSP(3);
+  VictorSP conveyor = new VictorSP(5);
+  VictorSP shooter1 = new VictorSP(1);
+  VictorSP shooter2 = new VictorSP(2);
+  SpeedControllerGroup shooter = new SpeedControllerGroup(shooter1,shooter2);
+  VictorSP intake = new VictorSP(4);
   DigitalOutput ultrasonicPing1 = new DigitalOutput(0);
   DigitalInput ultrasonicEcho1 = new DigitalInput(1);
   DigitalOutput ultrasonicPing2 = new DigitalOutput(2);
   DigitalInput ultrasonicEcho2 = new DigitalInput(3);
+  DigitalOutput ultrasonicPing3 = new DigitalOutput(4);
+  DigitalInput ultrasonicEcho3 = new DigitalInput(5);
   Ultrasonic ultrasonic1 = new Ultrasonic(ultrasonicPing1,ultrasonicEcho1);
   Ultrasonic ultrasonic2 = new Ultrasonic(ultrasonicPing2,ultrasonicEcho2);
+  Ultrasonic ultrasonic3 = new Ultrasonic(ultrasonicPing3,ultrasonicEcho3);
 
 
-  AHRS navx;
+  //AHRS navx;
   
   Timer autoPilotTimer = new Timer();
 
   double h2 = 83; //height of target "inches"
-  double h1 = 32; //height of camera
-  double a1 = 20; //angle of camera
+  double h1 = 33; //height of camera
+  double a1 = 22.5; //angle of camera 20 on test bot
   double disXnum;
   double aimnum;
-  double difYnum = h2 - h1;
+  double difYnum = h2 - h1 +7;  //+7 is distance between shoter and limelight
   double airtim;
-  double fixedAngle = (45)*Math.PI/180; //angle of shooter
+  double fixedAngle = (45)*Math.PI/180; //angle of shooter 45-47 degrees
   double veloFwoosh; //angular velocity variable
   double velocityToMotorRatio = 2; //conversion rate
 
@@ -120,8 +124,7 @@ public class Robot extends TimedRobot {
   boolean Ball1;
   boolean Ball2;
   boolean Ball3;
-  boolean Ball4;
-  boolean intakeOn = true;
+  boolean intakeOn = false;
   String colorString;
   String gameData;
   String nextColor = "Purple Baby";
@@ -134,9 +137,6 @@ public class Robot extends TimedRobot {
   private final Color GreenTarget = ColorMatch.makeColor(0.197, 0.561, 0.240);
   private final Color RedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
   private final Color YellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
-
-  double range1;
-  double range2;
 
   double yaw; 
     
@@ -153,6 +153,10 @@ public class Robot extends TimedRobot {
 
   int seenColor;
 
+  double range1;
+  double range2;
+  double range3;
+
   Timer warmUp = new Timer();
   /**
    * This function is run when the robot is first started up and should be
@@ -163,11 +167,13 @@ public class Robot extends TimedRobot {
     m_chooser.setDefaultOption("Center", kCenter);
     m_chooser.addOption("Left", kLeft);
     m_chooser.addOption("Right", kRight);
+    m_chooser.addOption("Off", kOff);
     SmartDashboard.putData("Auto positions", m_chooser);
     
-    navx = new AHRS(SerialPort.Port.kMXP, SerialDataType.kProcessedData, (byte)50);
-    rightDrive.setInverted(true);// Set true for Flash, set false for Simon/Tank
-    leftDrive.setInverted(true);//false for Simon and Dave, true for Flash
+    //navx = new AHRS(SerialPort.Port.kMXP, SerialDataType.kProcessedData, (byte)50);
+    colMotor.setInverted(true);
+    shooter1.setInverted(true);
+    conveyor.setInverted(true);
     CameraServer.getInstance().startAutomaticCapture();
 
     m_colorMatcher.addColorMatch(BlueTarget);
@@ -177,8 +183,8 @@ public class Robot extends TimedRobot {
 
     autoPilotTimer.reset();
     autoPilotTimer.stop();
-    navx.reset();
-    navx.zeroYaw();
+    //navx.reset();
+    //navx.zeroYaw();
     colMotor.set(0);
     rotatenum = 0;
     seenColor = 0;
@@ -221,7 +227,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Confidence", match.confidence);
     SmartDashboard.putString("Detected Color", colorString);
 
-    double yaw = navx.getYaw();
+    //double yaw = navx.getYaw();
     
    
     NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
@@ -229,9 +235,12 @@ public class Robot extends TimedRobot {
     NetworkTableEntry ty = table.getEntry("ty");
     NetworkTableEntry ta = table.getEntry("ta");
     NetworkTableEntry tv = table.getEntry("tv");
+   
+    
 
-    double x = tx.getDouble(0.0);
-    double y = ty.getDouble(0.0);
+
+    double x = -(tx.getDouble(0.0)); // x & y is negative because limelight is upsidedown
+    double y = -(ty.getDouble(0.0));
     double a = ta.getDouble(0.0);
     double v = tv.getDouble(0.0);
 
@@ -289,8 +298,8 @@ public class Robot extends TimedRobot {
     aimnum = Math.sqrt((disXnum*Math.tan(fixedAngle)*(disXnum)*(disXnum))/2*Math.pow(Math.cos(fixedAngle),2)*difYnum);
 
     //disXnum = ((h2-h1)/Math.tan((a1-y)*Math.PI/180));
-    disXnum = (h2-h1)/(Math.tan((a1+y)*Math.PI/180));
-    airtim = Math.sqrt((2*Math.sin(fixedAngle)/117.6)*((disXnum/Math.cos(fixedAngle))-(difYnum/Math.sin(fixedAngle))));
+    disXnum = (h2-h1)/(Math.tan((a1+y)*Math.PI/180)) +7; //+7 is distance between shoter and limelight
+    airtim = Math.sqrt((2*Math.sin(fixedAngle)/3786.22)*((disXnum/Math.cos(fixedAngle))-(difYnum/Math.sin(fixedAngle))));
     veloFwoosh = disXnum/(Math.cos(fixedAngle)*airtim);
     //(h2-h1)*.1/Math.tan((a1-y))
     SmartDashboard.putNumber("LimelightX", x);
@@ -298,13 +307,13 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("LimelightA", a);
     SmartDashboard.putNumber("ratioX",ratioX);
     SmartDashboard.putNumber("D-Pad",gamePad0.getPOV());
-    SmartDashboard.putNumber("Yaw",navx.getYaw());
-    SmartDashboard.putNumber("NavxStep",navxStep);
+    //SmartDashboard.putNumber("Yaw",navx.getYaw());
+    //SmartDashboard.putNumber("NavxStep",navxStep);
 
     SmartDashboard.putBoolean("Auto",doAutoPilotNow);
     SmartDashboard.putBoolean("isBall1", Ball1);
     SmartDashboard.putBoolean("isBall2", Ball2);
-
+    SmartDashboard.putBoolean("isBall3", Ball3);
 
     SmartDashboard.putNumber("DisXNum", disXnum);
     SmartDashboard.putNumber("DifYNum", difYnum);
@@ -334,17 +343,22 @@ public class Robot extends TimedRobot {
     switch (m_autoSelected) {
       case kLeft:
         // Put left auto code here
+        driveTrain.tankDrive(-.5,.5);
         break;
       case kRight:
+        driveTrain.tankDrive(.5,-.5);
         // Put right auto code here
         break;
       case kCenter:
-        // To default
+        // Put center auto code here
+        driveTrain.tankDrive(.5,.5);
+        break;
       default:
         // Put center auto code here
+        driveTrain.tankDrive(0,0);
         break;
     }
-    
+    /*
     switch (autoPosition.charAt(0)) {
       case 'L':
         driveTrain.tankDrive(-.5,.5);
@@ -359,18 +373,19 @@ public class Robot extends TimedRobot {
         driveTrain.tankDrive(0,0);
         break;
     }
-
+*/
   }
   @Override
   public void teleopInit() {
     
     autoPilotTimer.start();
-    navx.reset();
-    navx.zeroYaw();
+    //navx.reset();
+    //navx.zeroYaw();
     colMotor.set(0);
     rotatenum = 0;
     ultrasonic1.setEnabled(true);
     ultrasonic2.setEnabled(true);
+    ultrasonic3.setEnabled(true);
   }
   /**
    * This function is called periodically during operator control.
@@ -385,8 +400,7 @@ public class Robot extends TimedRobot {
   SmartDashboard.putNumber("rotatenum",rotatenum);
   SmartDashboard.putNumber("ultrasonicRange1",ultrasonic1.getRangeMM());
   SmartDashboard.putNumber("ultrasonicRange2",ultrasonic2.getRangeMM());
-  SmartDashboard.putNumber("Range1",range1);
-  SmartDashboard.putNumber("Range2",range2);
+  SmartDashboard.putNumber("ultrasonicRange3",ultrasonic3.getRangeMM());
   SmartDashboard.putBoolean("ultrasonic",ultrasonic1.isEnabled());
 
 
@@ -460,32 +474,51 @@ public class Robot extends TimedRobot {
     nextColor = colorString;
     colMotor.stopMotor();
   }
+ /* if(ultrasonic1.getRangeMM()>0.1){range1 = ultrasonic1.getRangeMM();}
+  if(ultrasonic2.getRangeMM()>0.1){range2 = ultrasonic2.getRangeMM();}
+  if(ultrasonic3.getRangeMM()>0.1){range3 = ultrasonic1.getRangeMM();}*/
 
+  if(ultrasonic1.getRangeMM() !=0.0){
     if(ultrasonic1.getRangeMM() > 200){Ball1 = false;}
     else{ Ball1 = true; }
-
-    if(ultrasonic2.getRangeMM() > 200){Ball2 = false;}
-    else{ Ball2 = true; }
-
+  }
+  if(ultrasonic2.getRangeMM() !=0.0){
+  if(ultrasonic2.getRangeMM() > 200){Ball2 = false;}
+  else{ Ball2 = true; }
+}
+if(ultrasonic3.getRangeMM() !=0.0){
+  if(ultrasonic3.getRangeMM() > 200){Ball3 = false;}
+  else{ Ball3 = true; }
+}
     ultrasonic1.ping();
     ultrasonic2.ping();
+    ultrasonic3.ping();
 
-    if(gamePad0.getRawButtonPressed(5)){intakeOn = !intakeOn;}
-    if(intakeOn){intake.set(.5);}
-    else{intake.set(0);}
-    //gamePad0.getRawButton(4) &&
-    if(Ball1 && !Ball2){conveyor.set(.5);} //button 4 questionable, propose we do it autonomous
-    if((Ball2 || !Ball1) && !gamePad0.getRawButton(6)){conveyor.set(0);} 
-    if (gamePad0.getRawButton(6)){
-      warmUp.start();
-      shooter.set(veloFwoosh*velocityToMotorRatio);//shooter value depending on target distance x and y
-      if(warmUp.hasPeriodPassed(10)){conveyor.set(.5);}
-    }
-    else {
-      warmUp.stop();
-      warmUp.reset();
-      shooter.set(0); //coolDown
-    }
+    SmartDashboard.putNumber("WarmUP",warmUp.get());
+
+    if(gamePad0.getPOV() != 180){intake.set(gamePad0.getRawAxis(2));}
+    else {intake.set(-.5);}
+    if(gamePad0.getRawButton(5) && gamePad0.getPOV() != 180){
+      conveyor.set(1);
+    } else if(gamePad0.getPOV() == 180){conveyor.set(-.5);}
+    else {conveyor.set(0);}
+
+    if(gamePad0.getRawButton(6)){shooter.set(1);}
+    else{shooter.set(0);}
+        /*if(gamePad0.getRawButton(5))
+                                                                       {
+                                shooter.set(.5);  
+                                                                                            }
+    if(gamePad0.getPOV() == 90 )
+            {
+                                                                                                                                                                                                                        conveyor.set(.5);
+      }
+      if(gamePad0.getPOV() == 0){
+      shooter1.set(1);
+    }else{shooter1.set(0);}
+    if(gamePad0.getPOV() == 180){
+      intake.set(.9);
+    }*/
 
     if(autoPilotStep==0){
       SmartDashboard.putNumber("leftStick",gamePad0.getRawAxis(1));
@@ -494,11 +527,7 @@ public class Robot extends TimedRobot {
       //double leftStick = (-gamePad0.getRawAxis(1)*((gamePad0.getRawAxis(3)==1)?.6:.8));
       double rightStick = (-gamePad0.getRawAxis(5)*.6)*(gamePad0.getRawAxis(3)+1);
       //double rightStick = (-gamePad0.getRawAxis(5)*((gamePad0.getRawAxis(3)==1)?.6:.8));
-      driveTrain.tankDrive(leftStick,rightStick);//12/13 is motor ratio for simon none for flash
-    }
-    if (gamePad0.getRawButtonPressed(10)) {
-      autoPilotStep=0;
-      doAutoPilotNow=false;
+      driveTrain.tankDrive(leftStick,-rightStick);//12/13 is motor ratio for simon none for flash
     }
 
     if(autoPilotStep != 0 || autoFace){
@@ -513,7 +542,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("autopilot",autoPilotStep);
 
     if(gamePad0.getRawButtonPressed(1)){doAutoPilotNow = !doAutoPilotNow;}
-    if(gamePad0.getRawButtonPressed(6) ||Math.abs(gamePad0.getRawAxis(1)) >= .2 || Math.abs(gamePad0.getRawAxis(5)) >= .2) { //a button
+    if(gamePad0.getRawButtonPressed(6) || gamePad0.getRawButtonPressed(10) || Math.abs(gamePad0.getRawAxis(1)) >= .2 || Math.abs(gamePad0.getRawAxis(5)) >= .2) { //a button
       autoPilotStep = 0;
       doAutoPilotNow=false;
     }
@@ -526,6 +555,9 @@ public class Robot extends TimedRobot {
       warmUp.reset();
       warmUp.stop();
       shooter.set(0);
+      intake.set(0);
+      conveyor.set(0);
+      intakeOn = false;
     }
 
 
